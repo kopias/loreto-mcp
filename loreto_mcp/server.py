@@ -42,6 +42,10 @@ _HEADERS = {
     "Content-Type": "application/json",
 }
 
+_PORTAL_HEADERS = {
+    "X-Portal-Key": _API_KEY,
+}
+
 # ---------------------------------------------------------------------------
 # MCP server
 # ---------------------------------------------------------------------------
@@ -144,7 +148,7 @@ def get_quota() -> str:
         with httpx.Client(timeout=15) as client:
             resp = client.get(
                 f"{_BASE_URL}/portal/usage",
-                headers=_HEADERS,
+                headers=_PORTAL_HEADERS,
             )
     except httpx.RequestError as exc:
         return f"Error: Could not reach the Loreto API — {exc}"
@@ -228,21 +232,38 @@ def _format_response(data: dict) -> str:
 
 
 def _format_quota(data: dict) -> str:
-    calls_this_month = data.get("calls_this_month", data.get("total_calls", "?"))
-    monthly_limit = data.get("monthly_limit", "?")
-    plan = data.get("plan", "unknown")
-    remaining = (
-        monthly_limit - calls_this_month
-        if isinstance(monthly_limit, int) and isinstance(calls_this_month, int)
-        else "?"
-    )
-    return (
-        f"**Loreto quota — {plan} plan**\n"
-        f"- Used this month: {calls_this_month}\n"
-        f"- Monthly limit: {monthly_limit}\n"
-        f"- Remaining: {remaining}\n\n"
-        f"To upgrade your plan, visit https://loreto.io/pricing"
-    )
+    summaries = data.get("key_summaries", [])
+    recent = data.get("recent_requests", [])
+
+    lines: list[str] = ["**Loreto quota**\n"]
+
+    if summaries:
+        for s in summaries:
+            used = s.get("monthly_used", "?")
+            limit = s.get("monthly_limit", "?")
+            remaining = limit - used if isinstance(limit, int) and isinstance(used, int) else "?"
+            plan = s.get("plan", "unknown")
+            prefix = s.get("key_prefix", "")
+            lines.append(
+                f"- `{prefix}...` — **{plan} plan** | "
+                f"{used}/{limit} used ({remaining} remaining)"
+            )
+    else:
+        lines.append("- No key summaries available.")
+
+    if recent:
+        lines.append("\n**Recent requests:**")
+        for r in recent[:5]:
+            lines.append(
+                f"- {r.get('created_at', '')[:10]} | "
+                f"`{r.get('key_prefix', '')}` | "
+                f"{r.get('endpoint', '')} | "
+                f"{r.get('tokens_used', 0):,} tokens | "
+                f"{r.get('duration_seconds', 0):.1f}s"
+            )
+
+    lines.append("\nTo upgrade your plan, visit https://loreto.io/pricing")
+    return "\n".join(lines)
 
 
 def _format_error(resp: httpx.Response) -> str:
