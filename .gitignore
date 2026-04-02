@@ -1,0 +1,19 @@
+# Claude agent instructions and commands (may contain sensitive context)
+.claude/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Environment / credentials
+.env
+.env.*
+*.pypirc
