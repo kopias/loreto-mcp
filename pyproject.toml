@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "loreto-mcp"
-version = "0.1.1"
+version = "0.1.2"
 description = "MCP server for the Loreto skill generation API — use generate_skills inside Claude Code"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -31,7 +31,7 @@ loreto-mcp = "loreto_mcp.server:main"
 [project.urls]
 Homepage = "https://loreto.io"
 Documentation = "https://loreto.io/docs-mcp"
-Repository = "https://github.com/loreto-io/loreto-mcp"
+Repository = "https://github.com/kopias/loreto-mcp"
 
 [tool.hatch.build.targets.wheel]
 packages = ["loreto_mcp"]
