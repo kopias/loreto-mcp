@@ -282,7 +282,7 @@ def _format_error(resp: httpx.Response) -> str:
 
     hints = {
         "INVALID_API_KEY": "Check that LORETO_API_KEY is set correctly in your MCP config.",
-        "RATE_LIMITED": "Monthly quota exceeded. Upgrade your plan at https://loreto.io/pricing",
+        "RATE_LIMIT_EXCEEDED": "Monthly quota exceeded. Upgrade your plan at https://loreto.io/pricing",
         "SOURCE_UNAVAILABLE": "The source URL could not be fetched. Check it's publicly accessible.",
         "SOURCE_TOO_LARGE": "Source exceeds size limits (YouTube ≤60min, PDF ≤100 pages, image ≤20MB).",
         "PROCESSING_TIMEOUT": "The pipeline timed out (>8 minutes). Try a shorter source.",
