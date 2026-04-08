@@ -100,7 +100,7 @@ Restart Claude Code and run `/mcp` — you should see `loreto` listed with `gene
 Once connected, just ask Claude Code naturally:
 
 ```
-Use Loreto to extract skills from https://www.youtube.com/watch?v=...
+Use Loreto to extract skills from https://www.youtube.com/watch?v=JYcidOS9ozU
 ```
 
 ```
