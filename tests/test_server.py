@@ -29,7 +29,7 @@ def test_get_quota():
 def test_generate_skills():
     print("\n── test_generate_skills ─────────────────────────────")
     result = generate_skills(
-        source="https://www.youtube.com/watch?v=HodCjnGv8Ag",
+        source="https://www.youtube.com/watch?v=JYcidOS9ozU",
         source_type="youtube",
         test_language="python",
         include_visuals=False,
