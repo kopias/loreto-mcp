@@ -39,9 +39,13 @@ Each folder includes the full `SKILL.md`, `README.md`, and any reference files �
 
 ## Setup
 
-### 1. Get an API key
+### 1. Authenticate
 
-Sign up at [loreto.io](https://loreto.io) to get your free API key (`lor_...`).
+Two options — pick the one that fits your usage pattern.
+
+**Option A — API key (recommended for most users):** Sign up at [loreto.io](https://loreto.io) to get your free API key (`lor_...`). Free tier covers 2 calls/month; Pro plan is $29/month for 100 calls.
+
+**Option B — Pay per call with x402 (for AI agents and one-off jobs):** No signup. Hit the alternate endpoint `/api/v1/skills/x402/generate` with a wallet that holds USDC on Base mainnet; pay $0.75 per call via the [x402 protocol](https://github.com/coinbase/x402). The MCP package above uses Option A — for Option B integrations, see [https://loreto.io/docs-x402](https://loreto.io/docs-x402.html) and the official [x402 Python SDK](https://pypi.org/project/x402/).
 
 ### 2. Install
 
