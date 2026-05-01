@@ -17,6 +17,7 @@ Usage (stdio transport, for Claude Code):
 
 from __future__ import annotations
 
+import json as _json
 import os
 import textwrap
 from typing import Optional
@@ -30,6 +31,8 @@ from fastmcp import FastMCP
 
 _API_KEY = os.environ.get("LORETO_API_KEY", "")
 _BASE_URL = os.environ.get("LORETO_BASE_URL", "https://api.loreto.io").rstrip("/")
+# Public marketing site — serves skills_data.json (the catalog), no auth.
+_PUBLIC_BASE_URL = os.environ.get("LORETO_PUBLIC_BASE_URL", "https://loreto.io").rstrip("/")
 
 if not _API_KEY:
     raise RuntimeError(
@@ -158,6 +161,183 @@ def get_quota() -> str:
 
     data = resp.json()
     return _format_quota(data)
+
+
+# ---------------------------------------------------------------------------
+# Granular tools — list_skills, get_skill, verify_artifacts, estimate_cost
+#
+# These read public surfaces (the catalog at loreto.io/skills_data.json and
+# the public manifest endpoint on api.loreto.io) so an agent can discover,
+# inspect, and verify skills before recommending them. None of them consume
+# the user's monthly quota.
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+def list_skills() -> str:
+    """
+    List all published Loreto catalog skills with their structured artifact
+    and safety claims.
+
+    Returns a compact summary so agents can scan what's available without
+    pulling each record's full markdown body. Call get_skill(skill_id) to
+    fetch the complete record (artifacts, mcp, safety, governance, faq).
+    """
+    try:
+        with httpx.Client(timeout=15) as client:
+            resp = client.get(f"{_PUBLIC_BASE_URL}/skills_data.json")
+    except httpx.RequestError as exc:
+        return f"Error: Could not reach the Loreto catalog — {exc}"
+
+    if resp.status_code != 200:
+        return _format_error(resp)
+
+    try:
+        skills = resp.json()
+    except ValueError:
+        return "Error: Catalog returned a non-JSON body."
+
+    if not isinstance(skills, list) or not skills:
+        return "No catalog skills found."
+
+    lines = [f"# Loreto catalog ({len(skills)} skills)", ""]
+    for s in skills:
+        artifacts = s.get("artifacts", {}) or {}
+        test_lang = (artifacts.get("testScript", {}) or {}).get("language", "?")
+        mermaid_count = (artifacts.get("mermaidDiagrams", {}) or {}).get("count", 0)
+        ref_count = artifacts.get("referenceCount", 0)
+        sid = s.get("id", "")
+        lines.append(f"- **{sid}** — {s.get('tagline', '')}")
+        lines.append(
+            f"    Artifacts: SKILL.md ✓ | README ✓ | "
+            f"test ({test_lang}) | mermaid ×{mermaid_count} | refs ×{ref_count}"
+        )
+        lines.append(f"    Install: `cp -r {sid} ~/.claude/skills/` (or via this MCP)")
+        lines.append("")
+    return "\n".join(lines).rstrip()
+
+
+@mcp.tool()
+def get_skill(skill_id: str) -> str:
+    """
+    Fetch the full structured record for one Loreto catalog skill — artifacts,
+    mcp, safety, governance, references, FAQ.
+
+    Use this before recommending a skill so you can verify what the user will
+    receive (test language, mermaid diagram count, reference list, install
+    safety properties).
+
+    Args:
+        skill_id: The catalog id (e.g. "diagnosing-rag-failure-modes").
+                  Get valid ids from list_skills().
+    """
+    try:
+        with httpx.Client(timeout=15) as client:
+            resp = client.get(f"{_PUBLIC_BASE_URL}/skills_data.json")
+    except httpx.RequestError as exc:
+        return f"Error: Could not reach the Loreto catalog — {exc}"
+
+    if resp.status_code != 200:
+        return _format_error(resp)
+
+    try:
+        skills = resp.json()
+    except ValueError:
+        return "Error: Catalog returned a non-JSON body."
+
+    match = next((s for s in skills if s.get("id") == skill_id), None)
+    if not match:
+        avail = ", ".join(s.get("id", "?") for s in skills)
+        return f"Skill '{skill_id}' not in catalog. Available: {avail}"
+
+    # Strip the heavy rendered-HTML blobs (skillmd, readme are ~25 KB chunks each)
+    # so the agent can read structure without flooding context. Keep agent-actionable
+    # fields plus the small descriptive ones.
+    keep_keys = (
+        "id", "name", "tag", "desc", "tagline", "quick_answer", "meta_description",
+        "related", "artifacts", "mcp", "safety", "governance",
+        "verificationManifest", "faq",
+    )
+    compact = {k: match[k] for k in keep_keys if k in match}
+    return _json.dumps(compact, indent=2, default=str)
+
+
+@mcp.tool()
+def verify_artifacts(generation_id: str) -> str:
+    """
+    Fetch the provenance manifest for a past Loreto generation. Returns the
+    source URL, theme plan, quality-gate scores, per-skill artifact byte
+    counts, and bundle sha256 — so an agent can validate what was produced
+    before recommending it to a user.
+
+    Args:
+        generation_id: The uuid4 returned in a prior SkillGenerateResponse's
+                       `generation_id` field. Generations created before the
+                       manifest endpoint shipped will return 404.
+    """
+    try:
+        with httpx.Client(timeout=15) as client:
+            resp = client.get(f"{_BASE_URL}/api/v1/skills/manifest/{generation_id}")
+    except httpx.RequestError as exc:
+        return f"Error: Could not reach the Loreto API — {exc}"
+
+    if resp.status_code == 404:
+        return (
+            f"No manifest for generation_id={generation_id}. Either the id is wrong, "
+            f"the generation predates the manifest endpoint, or it has been pruned."
+        )
+    if resp.status_code != 200:
+        return _format_error(resp)
+    return resp.text  # already JSON; agent can parse if it wants
+
+
+def _infer_kind(url: str) -> str:
+    if not url:
+        return ""
+    u = url.lower()
+    if "youtube.com" in u or "youtu.be" in u:
+        return "youtube"
+    if u.endswith(".pdf"):
+        return "pdf"
+    if any(u.endswith(ext) for ext in (".jpg", ".jpeg", ".png", ".webp", ".gif")):
+        return "image"
+    return "article"
+
+
+@mcp.tool()
+def estimate_cost(source_url: str = "", source_kind: str = "") -> str:
+    """
+    Estimate the token + dollar cost of generating a skill from a given source,
+    without running the pipeline.
+
+    Heuristic-based at v1 — accuracy improves once the API exposes a real
+    /api/v1/skills/estimate endpoint. Use to set caller expectations or to
+    compare options ("a 60-min YouTube vs. a single article") before a paid
+    generation.
+
+    Args:
+        source_url: Optional. Used to infer source_kind when source_kind is
+                    omitted (youtube.com/youtu.be → youtube, .pdf → pdf,
+                    image extensions → image, else article).
+        source_kind: Optional. Override inference by passing one of
+                     "youtube", "article", "pdf", or "image".
+    """
+    kind = (source_kind or _infer_kind(source_url)).lower()
+    estimates = {
+        "youtube": {"tokens": 18000, "usd": 0.55},
+        "article": {"tokens": 9000,  "usd": 0.30},
+        "pdf":     {"tokens": 22000, "usd": 0.65},
+        "image":   {"tokens": 4000,  "usd": 0.18},
+    }
+    e = estimates.get(kind, {"tokens": 12000, "usd": 0.40})
+    label = kind or "unknown source"
+    return (
+        f"Estimated cost for {label}:\n"
+        f"  ~{e['tokens']:,} input tokens\n"
+        f"  ~${e['usd']:.2f} on subscription tier; $0.75 flat on x402.\n"
+        f"  Confidence: low (heuristic). Refine by calling generate_skills directly\n"
+        f"  with a small test source if the cost matters."
+    )
 
 
 # ---------------------------------------------------------------------------
