@@ -4,11 +4,19 @@ Loreto MCP Server
 Exposes Loreto skill generation as MCP tools so AI coding agents
 (Claude Code, Codex, OpenCode) can call generate_skills directly.
 
+Billing — Loreto runs two parallel paths:
+  • API key (lor_...) — what this MCP uses; free tier + Pro plan.
+  • x402 pay-per-call — flat $0.75/call in USDC on Base mainnet, no signup.
+    The MCP itself does not sign x402 payments — for x402 use
+    POST /api/v1/skills/x402/generate directly with the x402 Python SDK
+    (https://pypi.org/project/x402/). See https://loreto.io/docs-x402.
+
 Required environment variable:
     LORETO_API_KEY  —  your Loreto API key (lor_...)
 
 Optional:
-    LORETO_BASE_URL —  override the API base URL (default: https://api.loreto.io)
+    LORETO_BASE_URL        —  override the API base URL (default: https://api.loreto.io)
+    LORETO_PUBLIC_BASE_URL —  override the marketing site URL  (default: https://loreto.io)
 
 Usage (stdio transport, for Claude Code):
     uvx loreto-mcp
@@ -60,12 +68,31 @@ mcp = FastMCP(
         Each skill contains a SKILL.md (principles, failure modes, implementation
         steps), README.md, reference files, and a runnable test script.
 
-        Use generate_skills to extract reusable knowledge from YouTube videos,
-        articles, PDFs, or images. The returned skill files can be saved to
-        .claude/skills/ so Claude Code can apply them on future tasks.
+        Two billing paths run side-by-side on the Loreto API:
 
-        Use get_quota to check how many API calls remain before running
-        long or repeated extractions.
+          • API key (lor_...) — what this MCP uses by default. Free tier (2/mo)
+            and Pro ($29/mo for 100 calls). Set LORETO_API_KEY in the MCP env.
+
+          • x402 pay-per-call — flat $0.75 per generation in USDC on Base
+            mainnet. No signup, no monthly cap. The MCP itself does not sign
+            x402 payments; for x402 use the REST endpoint
+            POST /api/v1/skills/x402/generate directly with the x402 Python SDK
+            (https://pypi.org/project/x402/). See https://loreto.io/docs-x402.
+
+        Tools by access level:
+
+          • generate_skills, get_quota — require LORETO_API_KEY. get_quota is
+            irrelevant on x402 (no monthly cap; you pay per call).
+
+          • list_skills, get_skill, verify_artifacts, estimate_cost — call
+            public endpoints. No API key or payment needed. Use them freely to
+            discover, inspect, and verify skills before recommending or
+            generating.
+
+        Every successful generation — API-key OR x402 — returns a generation_id
+        (uuid4). Pass it to verify_artifacts to fetch the provenance manifest
+        (source URL, theme plan, quality scores, artifact byte counts, bundle
+        sha256) without re-running the pipeline.
     """).strip(),
 )
 
@@ -91,6 +118,13 @@ def generate_skills(
 
     Skill files are ready to save to .claude/skills/ so Claude Code can apply
     them directly on future tasks, reducing token usage on repeated patterns.
+
+    Billing: this tool calls /api/v1/skills/generate with the LORETO_API_KEY
+    from the environment. For pay-per-call without a key, use the x402
+    endpoint /api/v1/skills/x402/generate directly via the x402 Python SDK
+    (flat $0.75/call in USDC on Base mainnet — see https://loreto.io/docs-x402).
+    The response shape is identical; both paths return a generation_id you
+    can pass to verify_artifacts.
 
     Args:
         source: URL to analyze — YouTube video, article, public PDF, or image URL.
@@ -144,8 +178,12 @@ def get_quota() -> str:
     """
     Check remaining API quota for the current billing period.
 
-    Returns the number of calls used, the monthly limit, and the plan name.
-    Use this before running large or repeated extractions to avoid hitting limits.
+    Returns the number of calls used, the monthly limit, and the plan name
+    for the LORETO_API_KEY in the environment. Use this before running
+    large or repeated extractions to avoid hitting limits.
+
+    Not relevant on the x402 pay-per-call path — that path has no monthly
+    quota; each call is charged $0.75 in USDC at request time.
     """
     try:
         with httpx.Client(timeout=15) as client:
@@ -270,6 +308,10 @@ def verify_artifacts(generation_id: str) -> str:
     counts, and bundle sha256 — so an agent can validate what was produced
     before recommending it to a user.
 
+    Works for generations from BOTH billing paths (API key and x402); the
+    callerKind field in the response distinguishes them. The endpoint is
+    public — no API key, no payment required to read.
+
     Args:
         generation_id: The uuid4 returned in a prior SkillGenerateResponse's
                        `generation_id` field. Generations created before the
@@ -334,7 +376,9 @@ def estimate_cost(source_url: str = "", source_kind: str = "") -> str:
     return (
         f"Estimated cost for {label}:\n"
         f"  ~{e['tokens']:,} input tokens\n"
-        f"  ~${e['usd']:.2f} on subscription tier; $0.75 flat on x402.\n"
+        f"  Path A — API key (this MCP): ~${e['usd']:.2f} of monthly allotment\n"
+        f"           (Free: 2/mo · Pro: $29/mo for 100 calls)\n"
+        f"  Path B — x402 pay-per-call:  $0.75 USDC, no signup, no monthly cap\n"
         f"  Confidence: low (heuristic). Refine by calling generate_skills directly\n"
         f"  with a small test source if the cost matters."
     )

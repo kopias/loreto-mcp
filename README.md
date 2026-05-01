@@ -37,15 +37,47 @@ Each folder includes the full `SKILL.md`, `README.md`, and any reference files �
 
 ---
 
+## Billing — two paths, pick one
+
+Loreto runs on two parallel billing paths. The right one depends on whether you're a human signing up or an AI agent paying per task.
+
+| | **API key** (`lor_...`) | **x402 pay-per-call** (USDC) |
+|---|---|---|
+| **Best for** | Humans, recurring use, teams | Agents, one-off jobs, anonymous use |
+| **Signup** | Yes — [loreto.io](https://loreto.io) | None |
+| **Pricing** | Free: 2 calls/mo · Pro: $29/mo for 100 | Flat $0.75 per call, no monthly cap |
+| **Wallet needed** | No | Yes — USDC on Base mainnet |
+| **MCP support** | This package, out of the box | Direct REST + the [x402 Python SDK](https://pypi.org/project/x402/) |
+| **Endpoint** | `POST /api/v1/skills/generate` | `POST /api/v1/skills/x402/generate` |
+| **Docs** | [docs-authentication](https://loreto.io/docs-authentication.html) | [docs-x402](https://loreto.io/docs-x402.html) |
+
+### Path A — API key (this MCP package)
+
+Get your key at [loreto.io](https://loreto.io), set `LORETO_API_KEY` in your MCP config (see below), and you're done. Free tier ships immediately; upgrade to Pro when you need more.
+
+### Path B — x402 pay-per-call (no signup)
+
+If you're an autonomous agent, an AI workflow without persistent credentials, or a developer who just wants to try one generation, x402 is faster than signing up. The MCP package itself uses Path A — but every catalog call (`list_skills`, `get_skill`, `verify_artifacts`, `estimate_cost`) is free regardless of which path you generate skills under.
+
+To run a generation under x402:
+
+```bash
+# Pseudocode — see https://loreto.io/docs-x402 for the full handshake
+curl -X POST https://api.loreto.io/api/v1/skills/x402/generate \
+  -H "X-PAYMENT: <eip-3009 signed authorization>" \
+  -H "Content-Type: application/json" \
+  -d '{"source": "https://www.youtube.com/watch?v=...", "source_type": "youtube"}'
+```
+
+The `X-PAYMENT` header is signed by your wallet against an EIP-3009 USDC transfer authorization for $0.75. The Loreto server only burns the authorization on a successful 2xx response — failed pipeline runs don't consume your USDC. Use the [x402 Python SDK](https://pypi.org/project/x402/) to handle the signing.
+
+**Verify any generation by id.** Both paths return a `generation_id` (uuid4). Pass it to the MCP's `verify_artifacts` tool — or hit `GET /api/v1/skills/manifest/{generation_id}` directly — to fetch the source URL, theme plan, quality scores, artifact byte counts, and bundle sha256. The endpoint is public, no auth required: the id is the capability.
+
 ## Setup
 
-### 1. Authenticate
+### 1. Get an API key (Path A)
 
-Two options — pick the one that fits your usage pattern.
-
-**Option A — API key (recommended for most users):** Sign up at [loreto.io](https://loreto.io) to get your free API key (`lor_...`). Free tier covers 2 calls/month; Pro plan is $29/month for 100 calls.
-
-**Option B — Pay per call with x402 (for AI agents and one-off jobs):** No signup. Hit the alternate endpoint `/api/v1/skills/x402/generate` with a wallet that holds USDC on Base mainnet; pay $0.75 per call via the [x402 protocol](https://github.com/coinbase/x402). The MCP package above uses Option A — for Option B integrations, see [https://loreto.io/docs-x402](https://loreto.io/docs-x402.html) and the official [x402 Python SDK](https://pypi.org/project/x402/).
+Sign up at [loreto.io](https://loreto.io). Skip this step if you're using x402 — see the billing section above.
 
 ### 2. Install
 
@@ -95,7 +127,7 @@ uvx loreto-mcp
 
 ### 4. Verify
 
-Restart Claude Code and run `/mcp` — you should see `loreto` listed with `generate_skills` and `get_quota`.
+Restart Claude Code and run `/mcp` — you should see `loreto` listed with six tools: `generate_skills`, `get_quota`, `list_skills`, `get_skill`, `verify_artifacts`, `estimate_cost`.
 
 ---
 
@@ -121,10 +153,16 @@ Claude calls `generate_skills`, receives the full skill package, and can write t
 
 ## Available tools
 
-| Tool | Description |
-|---|---|
-| `generate_skills` | Extract ranked skill packages from a URL. Returns full file contents ready to save. |
-| `get_quota` | Check calls used, monthly limit, and plan for your API key. |
+| Tool | Auth | Description |
+|---|---|---|
+| `generate_skills` | API key | Extract ranked skill packages from a URL. Returns full file contents ready to save. For x402 pay-per-call generations, see the billing section above. |
+| `get_quota` | API key | Check calls used, monthly limit, and plan for your API key. (Not relevant on x402 — there is no quota; you pay $0.75 per call.) |
+| `list_skills` | None | List all published Loreto catalog skills with their structured artifact and safety claims. Free for everyone. |
+| `get_skill` | None | Fetch the full structured record for one catalog skill — artifacts, mcp, safety, governance, references, FAQ. Free for everyone. |
+| `verify_artifacts` | None | Fetch the provenance manifest for a past generation by `generation_id` — works for both API-key and x402 generations. Free for everyone. |
+| `estimate_cost` | None | Heuristic token + USD cost estimate by source kind, before running the pipeline. Free for everyone. |
+
+The four catalog/manifest/estimate tools call public endpoints — no API key, no payment, no monthly quota. Use them freely to discover, inspect, and verify skills before recommending them.
 
 ### `generate_skills` parameters
 
@@ -161,7 +199,7 @@ Claude calls `generate_skills`, receives the full skill package, and can write t
 
 ## Plans
 
-Free and paid plans available. See [loreto.io/pricing](https://loreto.io/pricing) for current limits.
+Free, Pro, and Enterprise tiers under Path A — see [loreto.io/pricing](https://loreto.io/pricing) for current limits. Path B (x402) has no tiers: $0.75 per generation, billed per call in USDC. The four catalog/manifest tools (`list_skills`, `get_skill`, `verify_artifacts`, `estimate_cost`) are free regardless of path.
 
 ---
 
