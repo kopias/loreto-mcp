@@ -35,6 +35,58 @@ Every skill Loreto generates ships as its own standalone, installable repo. Thes
 
 Each repo has a human-facing README plus the skill itself in a same-named subfolder — `cp -r <repo>/<skill> ~/.claude/skills/` and Claude picks it up automatically.
 
+### Anatomy of a generated skill
+
+You don't have to clone anything to see what Loreto produces. Every generation
+is a ready-to-run package — a `SKILL.md` (principles, failure modes,
+implementation steps, **Mermaid diagrams**), supporting `references/`, and a
+runnable `tests/` script. The standalone repos wrap each one with a human
+README and the skill in a same-named subfolder:
+
+```
+designing-hybrid-context-layers/          ← public repo
+├── README.md                             ← for humans, not part of the skill
+└── designing-hybrid-context-layers/      ← the skill (cp into ~/.claude/skills/)
+    ├── SKILL.md
+    └── references/
+        ├── architecture-patterns.md
+        └── retrieval-decision-matrix.md
+```
+
+A trimmed look at the `SKILL.md` Loreto generated for that skill:
+
+~~~markdown
+---
+name: designing-hybrid-context-layers
+description: >
+  Designs hybrid AI context architectures that combine RAG, knowledge graphs,
+  episodic memory, and long-context synthesis appropriately. Use when ...
+---
+
+# Designing Hybrid Context Layers
+
+## The Three-Layer Context Model
+### Layer 1: Factual Store (Vector RAG)
+### Layer 2: Relational Store (Knowledge Graph)
+### Layer 3: Temporal/Episodic Store (Timeline Index)
+
+```mermaid
+flowchart TD
+    Q[Incoming Query] --> R{Query Router}
+    R -->|single fact| L1[Layer 1 — Vector RAG]
+    R -->|relationships| L2[Layer 2 — Knowledge Graph]
+    R -->|sequence / causation| L3[Layer 3 — Timeline Index]
+```
+
+## Anti-Pattern: The RAG-for-Everything Trap
+## Implementation Roadmap
+~~~
+
+Prefer not to leave your editor at all? The free `list_skills` and `get_skill`
+MCP tools return the same structured records, and `verify_artifacts` proves any
+past generation by `generation_id` — discover, inspect, and verify before you
+ever clone.
+
 ---
 
 ## Billing — two paths, pick one
