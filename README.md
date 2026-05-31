@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/banner.png" alt="Loreto — download skills the way Neo learns Kung Fu" width="100%">
+</p>
+
 # loreto-mcp
 
 Turn any YouTube video, article, PDF, or image into a reusable Claude Code skill — without leaving your editor.
