@@ -15,8 +15,19 @@ Required environment variable:
     LORETO_API_KEY  —  your Loreto API key (lor_...)
 
 Optional:
-    LORETO_BASE_URL        —  override the API base URL (default: https://api.loreto.io)
-    LORETO_PUBLIC_BASE_URL —  override the marketing site URL  (default: https://loreto.io)
+    LORETO_BASE_URL          —  override the API base URL (default: https://api.loreto.io)
+    LORETO_PUBLIC_BASE_URL   —  override the marketing site URL  (default: https://loreto.io)
+    LORETO_MARKETPLACE_BASE  —  override the marketplace REST base
+                                (default: https://loreto.io/api)
+
+This server exposes TWO Loreto products:
+  • Skills Generator   — generate_skills/get_quota + the public catalog tools
+    (list_skills, get_skill, verify_artifacts, estimate_cost). Turns a
+    URL/PDF/image into brand-new skills.
+  • Skills Marketplace — the marketplace_* tools (publish, search, get_listing,
+    my_metrics, my_listings, library, purchase). Publish/discover/buy skills
+    other people listed. Defined in loreto_mcp/marketplace.py.
+Both use the same LORETO_API_KEY.
 
 Usage (stdio transport, for Claude Code):
     uvx loreto-mcp
@@ -93,6 +104,14 @@ mcp = FastMCP(
         (uuid4). Pass it to verify_artifacts to fetch the provenance manifest
         (source URL, theme plan, quality scores, artifact byte counts, bundle
         sha256) without re-running the pipeline.
+
+        Beyond generation, this server also exposes the Loreto Skills MARKETPLACE
+        (the marketplace_* tools): publish a skill package for sale, search what
+        others have listed, read seller metrics, manage your own listings and
+        library, and buy a skill (free grant, Stripe Checkout, or agent-native
+        x402/USDC). The marketplace is a separate product from the generator —
+        use generate_skills to create a NEW skill, marketplace_search/_purchase
+        to find and acquire an EXISTING one.
     """).strip(),
 )
 
@@ -519,6 +538,17 @@ def _format_error(resp: httpx.Response) -> str:
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Marketplace tools (publish / search / purchase / metrics) — a second product
+# surface on the same server. Registered onto `mcp` from a separate module so the
+# generator and marketplace stay cleanly separated. Tool names are prefixed
+# `marketplace_` so they never collide with the catalog's list_skills/get_skill.
+# ---------------------------------------------------------------------------
+from .marketplace import register as _register_marketplace  # noqa: E402
+
+_register_marketplace(mcp)
+
 
 def main() -> None:
     mcp.run()  # stdio transport — default for Claude Code MCP

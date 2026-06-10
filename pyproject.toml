@@ -4,12 +4,12 @@ build-backend = "hatchling.build"
 
 [project]
 name = "loreto-mcp"
-version = "0.2.1"
-description = "MCP server for the Loreto skill generation API. API key or pay-per-call (x402, $0.75 USDC) — generate, list, and verify Claude Code skills inside any MCP client."
+version = "0.3.0"
+description = "MCP server for Loreto: generate Claude Code skills from any source AND publish/discover/buy them on the Loreto skills marketplace (Stripe or x402/USDC) — inside any MCP client."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-keywords = ["loreto", "mcp", "skills", "claude", "ai", "model-context-protocol"]
+keywords = ["loreto", "mcp", "skills", "claude", "ai", "model-context-protocol", "marketplace", "x402"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",

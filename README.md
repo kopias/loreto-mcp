@@ -183,7 +183,7 @@ uvx loreto-mcp
 
 ### 4. Verify
 
-Restart Claude Code and run `/mcp` — you should see `loreto` listed with six tools: `generate_skills`, `get_quota`, `list_skills`, `get_skill`, `verify_artifacts`, `estimate_cost`.
+Restart Claude Code and run `/mcp` — you should see `loreto` listed with thirteen tools. Six belong to the **Skills Generator** (`generate_skills`, `get_quota`, `list_skills`, `get_skill`, `verify_artifacts`, `estimate_cost`) and seven to the **Skills Marketplace** (`marketplace_publish`, `marketplace_search`, `marketplace_get_listing`, `marketplace_my_metrics`, `marketplace_my_listings`, `marketplace_library`, `marketplace_purchase`).
 
 ---
 
@@ -220,6 +220,22 @@ Claude calls `generate_skills`, receives the full skill package, and can write t
 
 The four catalog/manifest/estimate tools call public endpoints — no API key, no payment, no monthly quota. Use them freely to discover, inspect, and verify skills before recommending them.
 
+### Marketplace tools
+
+The same server also exposes the **Loreto Skills Marketplace** — publish, discover, and buy skill packages other people have listed at loreto.io. This is a separate product from the generator: `generate_skills` creates a *new* skill from a source, while `marketplace_search` / `marketplace_purchase` find and acquire an *existing* one. All marketplace tools are prefixed `marketplace_` so they never collide with the catalog's `list_skills` / `get_skill`.
+
+| Tool | Auth | Description |
+|---|---|---|
+| `marketplace_publish` | API key | Publish a skill package for sale (or save a draft). Every upload is scanned for malicious content and rejected if it's a near-duplicate of an existing listing. |
+| `marketplace_search` | None | Search/browse all listed skills — filter `free`/`paid`, sort by downloads/rating/newest/price. |
+| `marketplace_get_listing` | API key | Full detail for one listing by slug. Full package contents unlock only if you own it. |
+| `marketplace_my_metrics` | API key | Your seller metrics — sales, downloads, listed count, gross/net earnings, payout status. |
+| `marketplace_my_listings` | API key | Your own listings (published + drafts). |
+| `marketplace_library` | API key | Skills you own (free + purchased). |
+| `marketplace_purchase` | API key | Acquire a free skill instantly, or get a Stripe Checkout URL **and** an agent-native x402/USDC payment challenge for a paid one. |
+
+Buying a paid skill works two ways: open the returned `checkout_url` to pay by card, or — if your agent holds a wallet — sign the `x402` payment requirements (EIP-3009 USDC `transferWithAuthorization`) and re-POST with an `X-PAYMENT` header to settle on-chain. The challenge's `network` / `asset` / `payTo` fields state exactly what to pay.
+
 ### `generate_skills` parameters
 
 | Parameter | Type | Default | Description |
@@ -248,8 +264,10 @@ The four catalog/manifest/estimate tools call public endpoints — no API key, n
 
 | Environment variable | Required | Default | Description |
 |---|---|---|---|
-| `LORETO_API_KEY` | Yes | — | Your Loreto API key (`lor_...`) |
-| `LORETO_BASE_URL` | No | `https://api.loreto.io` | Override for local development |
+| `LORETO_API_KEY` | Yes | — | Your Loreto API key (`lor_...`) — used by both the generator and the marketplace |
+| `LORETO_BASE_URL` | No | `https://api.loreto.io` | Generator API base — override for local development |
+| `LORETO_PUBLIC_BASE_URL` | No | `https://loreto.io` | Marketing site (serves the public catalog) |
+| `LORETO_MARKETPLACE_BASE` | No | `https://loreto.io/api` | Marketplace REST base — override for local development |
 
 ---
 
