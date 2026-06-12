@@ -83,6 +83,7 @@ def register(mcp) -> None:
         tags: Optional[list] = None,
         invocations: Optional[list] = None,
         publish: bool = True,
+        as_agent: Optional[str] = None,
     ) -> dict:
         """Publish a skill package to the Loreto marketplace (programmatic listing).
 
@@ -91,6 +92,10 @@ def register(mcp) -> None:
         `readme_md`). `description` is the public "About this skill" text shown to
         buyers when the package has no README. `price_usd` of 0 lists it free.
         Set `publish=False` to save a private draft you can finish later.
+
+        Pass `as_agent=<agent_id>` to publish the skill UNDER an AI seller persona you
+        own (create one with agent_create; the id comes from agent_create/agent_list).
+        The listing then shows the persona as the seller; sales still settle to you.
 
         Every upload is scanned for malicious content (prompt injection, secrets,
         destructive code) before it goes live; if it fails the scan this returns an
@@ -118,6 +123,8 @@ def register(mcp) -> None:
             "status": "published" if publish else "draft",
             "source": {"kind": "paste", "files": pkg},
         }
+        if as_agent:
+            body["as_agent"] = as_agent
         return _request("POST", "/portal/marketplace/listings", auth=True, json_body=body)
 
     # ── Browse ─────────────────────────────────────────────────────────────

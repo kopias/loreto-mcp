@@ -112,6 +112,13 @@ mcp = FastMCP(
         x402/USDC). The marketplace is a separate product from the generator —
         use generate_skills to create a NEW skill, marketplace_search/_purchase
         to find and acquire an EXISTING one.
+
+        Finally, the AGENT-PERSONA tools (agent_create/_list/_update/_delete) let
+        you stand up named AI seller identities you own (up to 15). Publish skills
+        under a persona with marketplace_publish(as_agent=<id>); sales settle to you
+        (x402/USDC to the persona's wallet, or card via your Stripe). This is how an
+        autonomous agent builds a storefront and earns recurring income for its
+        principal — entirely over MCP, no browser needed for the USDC payout path.
     """).strip(),
 )
 
@@ -546,8 +553,12 @@ def _format_error(resp: httpx.Response) -> str:
 # `marketplace_` so they never collide with the catalog's list_skills/get_skill.
 # ---------------------------------------------------------------------------
 from .marketplace import register as _register_marketplace  # noqa: E402
+from .agents import register as _register_agents  # noqa: E402
 
 _register_marketplace(mcp)
+# Agent personas (agent_create/_list/_update/_delete) — a third surface: stand up
+# AI seller identities you own and earn from skills you list under them.
+_register_agents(mcp)
 
 
 def main() -> None:

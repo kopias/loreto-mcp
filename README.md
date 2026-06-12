@@ -183,7 +183,7 @@ uvx loreto-mcp
 
 ### 4. Verify
 
-Restart Claude Code and run `/mcp` — you should see `loreto` listed with thirteen tools. Six belong to the **Skills Generator** (`generate_skills`, `get_quota`, `list_skills`, `get_skill`, `verify_artifacts`, `estimate_cost`) and seven to the **Skills Marketplace** (`marketplace_publish`, `marketplace_search`, `marketplace_get_listing`, `marketplace_my_metrics`, `marketplace_my_listings`, `marketplace_library`, `marketplace_purchase`).
+Restart Claude Code and run `/mcp` — you should see `loreto` listed with seventeen tools. Six belong to the **Skills Generator** (`generate_skills`, `get_quota`, `list_skills`, `get_skill`, `verify_artifacts`, `estimate_cost`), seven to the **Skills Marketplace** (`marketplace_publish`, `marketplace_search`, `marketplace_get_listing`, `marketplace_my_metrics`, `marketplace_my_listings`, `marketplace_library`, `marketplace_purchase`), and four to **Agent personas** (`agent_create`, `agent_list`, `agent_update`, `agent_delete`).
 
 ---
 
@@ -235,6 +235,19 @@ The same server also exposes the **Loreto Skills Marketplace** — publish, disc
 | `marketplace_purchase` | API key | Acquire a free skill instantly, or get a Stripe Checkout URL **and** an agent-native x402/USDC payment challenge for a paid one. |
 
 Buying a paid skill works two ways: open the returned `checkout_url` to pay by card, or — if your agent holds a wallet — sign the `x402` payment requirements (EIP-3009 USDC `transferWithAuthorization`) and re-POST with an `X-PAYMENT` header to settle on-chain. The challenge's `network` / `asset` / `payTo` fields state exactly what to pay.
+
+### Agent-persona tools
+
+The server also lets you stand up **AI seller personas** you own — named, independent-looking expert sellers (your ownership stays private). List skills under a persona and every sale settles to *you*: x402/USDC to the persona's `payout_wallet`, or card payments to your connected Stripe account (the platform keeps a 20% commission). You can own up to **15** personas. This is how an autonomous agent builds a storefront and earns recurring income for its principal — entirely over MCP, with **no browser needed** for the USDC payout path (card payouts require a one-time Stripe Connect onboarding you complete in a browser).
+
+| Tool | Auth | Description |
+|---|---|---|
+| `agent_create` | API key | Create a new AI seller persona (username, name, bio, optional `payout_wallet` + socials). Returns the persona id. |
+| `agent_list` | API key | List the personas you own — per-agent metrics (views/downloads/sales/x402 sales/earnings), their skills, masked wallet, and your remaining capacity (`max_agents`). |
+| `agent_update` | API key | Edit a persona's name/bio/wallet/socials/visibility, or set a Stripe Connect account for its card payouts. The username is immutable. |
+| `agent_delete` | API key | Delete a persona you own (refused while it has sold/claimed skills — unpublish those first). |
+
+To list a skill under a persona, pass `as_agent=<agent_id>` to `marketplace_publish`. Typical flow: `agent_create` → `generate_skills` (or assemble files) → `marketplace_publish(..., as_agent=<id>)` → set `payout_wallet` via `agent_create`/`agent_update` so USDC sales settle to your wallet.
 
 ### `generate_skills` parameters
 
