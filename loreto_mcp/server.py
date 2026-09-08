@@ -21,7 +21,7 @@ Optional:
                                 (default: https://loreto.io/api)
 
 This server exposes TWO Loreto products:
-  • Skills Generator   — generate_skills/get_quota + the public catalog tools
+  • Skills Generator   — generate_skills/check_generation/get_quota + the public catalog tools
     (list_skills, get_skill, verify_artifacts, estimate_cost). Turns a
     URL/PDF/image into brand-new skills.
   • Skills Marketplace — the marketplace_* tools (publish, search, get_listing,
@@ -39,6 +39,7 @@ from __future__ import annotations
 import json as _json
 import os
 import textwrap
+import time
 from typing import Optional
 
 import httpx
@@ -180,23 +181,125 @@ def generate_skills(
     if themes_to_process:
         payload["themes_to_process"] = themes_to_process
 
+    # Submit, then poll. The synchronous endpoint holds the connection for the
+    # whole run and is capped at 200s; measured uploads have reached 188s, and a
+    # single held request that long is fragile through proxies and easy for an
+    # MCP host to abandon. Submitting returns a job id in under a second, and the
+    # work continues server-side even if this call is interrupted — so a timeout
+    # here costs the caller a poll, not the generation.
     try:
-        with httpx.Client(timeout=600) as client:
+        with httpx.Client(timeout=30) as client:
             resp = client.post(
-                f"{_BASE_URL}/api/v1/skills/generate",
+                f"{_BASE_URL}/api/v1/skills/generate/async",
                 json=payload,
                 headers=_HEADERS,
             )
-    except httpx.TimeoutException:
-        return "Error: Request timed out. The skill generation pipeline can take up to 8 minutes for long sources."
     except httpx.RequestError as exc:
         return f"Error: Could not reach the Loreto API — {exc}"
 
-    if resp.status_code != 200:
+    if resp.status_code == 404:
+        # An older deployment without the async endpoint. Fall back rather than fail.
+        return _generate_sync(payload)
+    if resp.status_code != 202:
         return _format_error(resp)
 
-    data = resp.json()
-    return _format_response(data)
+    job_id = resp.json().get("job_id", "")
+    result = _poll_job(job_id, budget_seconds=240)
+    if result is None:
+        return (
+            f"Generation is still running. Job id: {job_id}\n\n"
+            f"It has not failed — the pipeline is allowed up to "
+            f"{_PIPELINE_MAX_SECONDS} seconds and the work continues server-side. "
+            f"Call check_generation with this job id in a minute to collect the skills."
+        )
+    return result
+
+
+_PIPELINE_MAX_SECONDS = 200
+
+
+def _generate_sync(payload: dict) -> str:
+    """Fallback for a deployment that predates /generate/async."""
+    try:
+        with httpx.Client(timeout=_PIPELINE_MAX_SECONDS + 30) as client:
+            resp = client.post(
+                f"{_BASE_URL}/api/v1/skills/generate", json=payload, headers=_HEADERS,
+            )
+    except httpx.TimeoutException:
+        return (
+            f"Error: Request timed out. Generation is capped at {_PIPELINE_MAX_SECONDS} "
+            f"seconds; a typical URL source finishes in about 80."
+        )
+    except httpx.RequestError as exc:
+        return f"Error: Could not reach the Loreto API — {exc}"
+    if resp.status_code != 200:
+        return _format_error(resp)
+    return _format_response(resp.json())
+
+
+def _poll_job(job_id: str, budget_seconds: int = 240) -> str | None:
+    """Poll a job to a terminal state. Returns None if the budget runs out first."""
+    if not job_id:
+        return "Error: the API accepted the job but returned no job id."
+    deadline = time.monotonic() + budget_seconds
+    while time.monotonic() < deadline:
+        time.sleep(6)
+        try:
+            with httpx.Client(timeout=20) as client:
+                r = client.get(f"{_BASE_URL}/api/v1/skills/jobs/{job_id}", headers=_HEADERS)
+        except httpx.RequestError:
+            continue
+        if r.status_code != 200:
+            return _format_error(r)
+        job = r.json()
+        if job.get("status") == "completed":
+            return _format_response(job.get("result") or {})
+        if job.get("status") == "failed":
+            err = job.get("error") or {}
+            return f"Error: generation failed ({err.get('code', 'ERROR')}) — {err.get('detail', 'no detail given')}"
+    return None
+
+
+@mcp.tool()
+def check_generation(job_id: str) -> str:
+    """
+    Collect a skill generation that was still running when generate_skills returned.
+
+    generate_skills waits several minutes before handing back a job id. If it did,
+    pass that id here to get the finished skill packages. Safe to call repeatedly;
+    it does not start new work and does not consume quota.
+
+    Args:
+        job_id: The job id printed by generate_skills.
+
+    Returns:
+        The generated skills, or a note that the job is still running.
+    """
+    if not job_id or not job_id.strip():
+        return "Error: a job_id is required. It is printed by generate_skills when a run is slow."
+    try:
+        with httpx.Client(timeout=20) as client:
+            r = client.get(f"{_BASE_URL}/api/v1/skills/jobs/{job_id.strip()}", headers=_HEADERS)
+    except httpx.RequestError as exc:
+        return f"Error: Could not reach the Loreto API — {exc}"
+    if r.status_code == 404:
+        return (
+            "Error: no such job. The id may be mistyped, older than 24 hours, or "
+            "created with a different API key."
+        )
+    if r.status_code != 200:
+        return _format_error(r)
+    job = r.json()
+    status = job.get("status")
+    if status == "completed":
+        return _format_response(job.get("result") or {})
+    if status == "failed":
+        err = job.get("error") or {}
+        return f"Error: generation failed ({err.get('code', 'ERROR')}) — {err.get('detail', 'no detail given')}"
+    return (
+        f"Still running (status: {status}). Wait about "
+        f"{job.get('retry_after_seconds', 15)} seconds and check again."
+    )
 
 
 @mcp.tool()
