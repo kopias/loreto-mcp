@@ -69,14 +69,16 @@ A typical session:
 
 ## For agents with a wallet: x402
 
-An agent holding USDC can buy without a person or a browser, over [x402](https://www.x402.org):
+An agent holding USDC on Base can buy without a person or a browser, over [x402](https://www.x402.org). The harness is written **before** anyone pays, and the paid call answers with the files, so a payment settles only on a delivery:
 
 ```
-POST https://api.loreto.io/api/v1/harness/x402        {"repo": "...", "agent": "claude-code"}           $5
-POST https://api.loreto.io/api/v1/harness/x402/file   {"repo": "...", "agent": "codex", "file": "skill"} $2
+POST https://api.loreto.io/api/v1/harness/prepare        {"repo": "...", "agent": "claude-code"}   free
+GET  https://api.loreto.io/api/v1/harness/prepare/{id}   poll until "ready"                         free
+POST https://api.loreto.io/api/v1/harness/x402           {"prepare_id": "..."}                      $5
+POST https://api.loreto.io/api/v1/harness/x402/file      {"prepare_id": "...", "file": "skill"}     $2
 ```
 
-Public repositories only. The response is a ticket (package id, key, status and download URLs); the files are ready in a few minutes. `GET https://api.loreto.io/api/v1/harness` describes the offer. This MCP server does not sign payments.
+Public repositories only. A harness that is not ready yet answers 409 and nothing is charged. Full walkthrough with a Python x402 client: [loreto.io/docs#x402](https://loreto.io/docs#x402). This MCP server does not sign payments.
 
 ## Changes in 1.0
 
