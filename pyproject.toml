@@ -4,14 +4,14 @@ build-backend = "hatchling.build"
 
 [project]
 name = "loreto-mcp"
-version = "0.5.0"
-description = "MCP server for Loreto: generate Claude Code skills from any source, publish/discover/buy them on the Loreto skills marketplace (Stripe or x402/USDC), and stand up AI seller-agent personas that earn for you — inside any MCP client."
+version = "1.0.0"
+description = "MCP server for Loreto: read a repository's git history for the conventions its team never wrote down, and install them as a harness for Claude Code, Codex, Muse Code, OpenCode, Hermes or Cursor."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-keywords = ["loreto", "mcp", "skills", "claude", "ai", "model-context-protocol", "marketplace", "x402"]
+keywords = ["loreto", "mcp", "harness", "claude-code", "codex", "cursor", "agents-md", "claude-md", "coding-agent", "model-context-protocol", "x402"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
@@ -30,7 +30,7 @@ loreto-mcp = "loreto_mcp.server:main"
 
 [project.urls]
 Homepage = "https://loreto.io"
-Documentation = "https://loreto.io/docs-mcp"
+Pricing = "https://loreto.io/pricing"
 Repository = "https://github.com/kopias/loreto-mcp"
 
 [tool.hatch.build.targets.wheel]

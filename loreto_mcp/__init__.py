@@ -1,3 +1,3 @@
-"""loreto-mcp — MCP server for the Loreto skill generation API."""
+"""loreto-mcp — arm your coding agent with your repository (https://loreto.io)."""
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"
