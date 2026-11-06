@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner.png" alt="loreto-mcp — arm your coding agent with your repository. Works with Claude Code, Codex, Muse Code, OpenCode, Hermes and Cursor." width="100%">
+  <img src="https://raw.githubusercontent.com/kopias/loreto-mcp/main/assets/banner.png" alt="loreto-mcp — arm your coding agent with your repository. Works with Claude Code, Codex, Muse Code, OpenCode, Hermes and Cursor." width="100%">
 </p>
 
 # loreto-mcp
