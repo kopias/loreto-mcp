@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/banner.png" alt="loreto-mcp — arm your coding agent with your repository. Works with Claude Code, Codex, Muse Code, OpenCode, Hermes and Cursor." width="100%">
+</p>
+
 # loreto-mcp
 
 **Stop re-explaining your codebase.** Every codebase keeps rules no one wrote down: where code goes, how big a change is, what has to change together, what was reverted and why. Loreto reads them from your git history and installs them as a harness your coding agent loads, so every pull request it opens reads like your team wrote it.
