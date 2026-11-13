@@ -17,7 +17,7 @@ The flow, as tools:
 
 And, on your machine, through Gitology (https://loreto.io/gitology):
 
-    check_approach  is this approach sound here? a verdict with the commits behind it
+    check_approach  should I build it this way here? a verdict with the commits behind it
     plan_change     a change kit: SPEC.md, and STEPS.md small enough for a small model
 
 No API key is needed for a public repository. Set LORETO_API_KEY (from
@@ -448,8 +448,8 @@ def _gitology(args: list[str], path: str, timeout: int = 900) -> tuple[bool, str
 @mcp.tool()
 def check_approach(approach: str, path: str = ".") -> str:
     """
-    Before writing code for a non-trivial change, ask whether the approach is sound for THIS
-    repository. Returns a verdict (sound, risky, unsound or unclear), the evidence behind it
+    Before writing code for a non-trivial change, ask whether it should be built this way in THIS
+    repository. Returns a verdict (good to go, risky, don't merge or not sure), the evidence behind it
     (commits, reverts, decision records, co-change, tests, owners), what the change would touch,
     and a better route when there is one. Runs Gitology locally; the code stays on this machine.
 

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "loreto-mcp"
-version = "1.1.0"
+version = "1.1.1"
 description = "MCP server for Loreto: read a repository's git history for the conventions its team never wrote down, and install them as a harness for Claude Code, Codex, Muse Code, OpenCode, Hermes or Cursor; and, with Gitology, ask whether an approach is sound before writing it."
 readme = "README.md"
 requires-python = ">=3.10"
