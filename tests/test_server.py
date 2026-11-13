@@ -122,6 +122,41 @@ def test_read_buy_install_flow(monkeypatch=None):
     assert "Armed" in fn(server.get_harness)(str(Path(tempfile.mkdtemp())))
 
 
+def test_gitology_tools_say_how_to_install_when_missing():
+    old = os.environ.get("PATH", "")
+    os.environ["PATH"] = tempfile.mkdtemp()
+    try:
+        out = fn(server.check_approach)("add retries to the client", tempfile.mkdtemp())
+    finally:
+        os.environ["PATH"] = old
+    assert "not installed" in out and server.GITOLOGY_INSTALL in out
+
+
+def test_gitology_tools_map_first_then_answer():
+    bin_dir, repo = Path(tempfile.mkdtemp()), Path(tempfile.mkdtemp())
+    log = bin_dir / "calls"
+    fake = bin_dir / "gitology"
+    fake.write_text(f"""#!/bin/sh
+echo "$1" >> {log}
+case "$1" in
+  init) mkdir -p .gitology ;;
+  ask) echo "UNSOUND  tried in March and reverted" ;;
+  spec) mkdir -p .gitology/changes/k && echo "## Step 1 · do it" > .gitology/changes/k/STEPS.md
+        echo "  ✓ change kit written to .gitology/changes/k" ;;
+esac
+""")
+    fake.chmod(0o755)
+    old = os.environ.get("PATH", "")
+    os.environ["PATH"] = f"{bin_dir}{os.pathsep}{old}"
+    try:
+        assert "UNSOUND" in fn(server.check_approach)("add retries", str(repo))
+        out = fn(server.plan_change)("add retries", str(repo))
+    finally:
+        os.environ["PATH"] = old
+    assert "## Step 1" in out
+    assert log.read_text().split() == ["init", "ask", "spec"]   # mapped once, then answered
+
+
 if __name__ == "__main__":
     for name, f in list(globals().items()):
         if name.startswith("test_"):

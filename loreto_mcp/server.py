@@ -15,6 +15,11 @@ The flow, as tools:
     get_harness     once paid: write the files into the repository
     ask_repo        questions to the repository, 25 with each purchase
 
+And, on your machine, through Gitology (https://loreto.io/gitology):
+
+    check_approach  is this approach sound here? a verdict with the commits behind it
+    plan_change     a change kit: SPEC.md, and STEPS.md small enough for a small model
+
 No API key is needed for a public repository. Set LORETO_API_KEY (from
 https://loreto.io/dashboard) to keep purchases on your account and to read
 private repositories you have connected to Loreto through GitHub.
@@ -22,6 +27,12 @@ private repositories you have connected to Loreto through GitHub.
 Agents with a USDC wallet can skip the checkout link and pay over x402 at
 https://api.loreto.io/api/v1/harness/x402 ($5) or /x402/file ($2); this server
 does not sign payments. GET https://api.loreto.io/api/v1/harness describes it.
+
+check_approach and plan_change run the local `gitology` command, which builds
+its graph on this machine; install it with
+    curl -fsSL https://loreto.io/gitology/install.sh | sh
+They need a model for the verdict (ANTHROPIC_API_KEY, OPENAI_API_KEY, or
+GITOLOGY_MODEL=ollama:<model> to keep everything local).
 
 Optional environment:
     LORETO_API_KEY    your Loreto key (lor_...)
@@ -38,6 +49,8 @@ import io
 import json
 import os
 import re
+import shutil
+import subprocess
 import textwrap
 import time
 import zipfile
@@ -397,6 +410,80 @@ def ask_repo(question: str, read_id: str = "") -> str:
     a = r.json()
     tail = f"\n\n({a['chats_left']} questions left.)" if a.get("chats_left") is not None else ""
     return (a.get("reply") or "") + tail
+
+
+# ── Gitology, on this machine ────────────────────────────────────────────────
+
+GITOLOGY_INSTALL = "curl -fsSL https://loreto.io/gitology/install.sh | sh"
+
+
+def _gitology(args: list[str], path: str, timeout: int = 900) -> tuple[bool, str]:
+    """Run the local gitology CLI in the repo at path, mapping the repo first if it has no graph."""
+    exe = shutil.which("gitology")
+    if not exe:
+        return False, ("Gitology is not installed on this machine. It maps the repository locally and "
+                       f"answers from its history. Install it with:\n    {GITOLOGY_INSTALL}\n"
+                       "then call this tool again. https://loreto.io/gitology")
+    root = Path(path or ".").expanduser().resolve()
+    if not root.is_dir():
+        return False, f"Error: {root} is not a directory."
+
+    def run(a: list[str]) -> subprocess.CompletedProcess:
+        return subprocess.run([exe, *a], cwd=str(root), capture_output=True, text=True, timeout=timeout)
+
+    try:
+        if not (root / ".gitology").exists():
+            r = run(["init"])
+            if r.returncode != 0:
+                return False, "Error: gitology init failed:\n" + (r.stderr or r.stdout)[-2000:]
+        r = run(args)
+    except subprocess.TimeoutExpired:
+        return False, f"Error: gitology took longer than {timeout}s."
+    out = (r.stdout or "").strip()
+    if r.returncode != 0:
+        return False, "Error: " + ((r.stderr or "").strip() or out)[-2000:]
+    return True, out
+
+
+@mcp.tool()
+def check_approach(approach: str, path: str = ".") -> str:
+    """
+    Before writing code for a non-trivial change, ask whether the approach is sound for THIS
+    repository. Returns a verdict (sound, risky, unsound or unclear), the evidence behind it
+    (commits, reverts, decision records, co-change, tests, owners), what the change would touch,
+    and a better route when there is one. Runs Gitology locally; the code stays on this machine.
+
+    Args:
+        approach: The change you plan to make, in plain language.
+        path: The repository (default: the current directory).
+    """
+    if not (approach or "").strip():
+        return "Error: describe the approach to check."
+    return _gitology(["ask", approach[:4000]], path)[1]
+
+
+@mcp.tool()
+def plan_change(request: str, path: str = ".", name: str = "") -> str:
+    """
+    Write a change kit for a request: verdict.md, SPEC.md (goal, rules, files not to touch, how to
+    know it worked) and STEPS.md (one file, one edit and one check per step, small enough for a
+    small model). Returns STEPS.md. `gitology prove <kit>` then builds it with a small model and
+    checks every step before anyone relies on it.
+
+    Args:
+        request: What should change, in plain language.
+        path: The repository (default: the current directory).
+        name: Optional folder name under .gitology/changes/.
+    """
+    if not (request or "").strip():
+        return "Error: say what should change."
+    ok, out = _gitology(["spec", request[:4000], *(["--name", name] if name else [])], path)
+    if not ok:
+        return out
+    m = re.search(r"change kit written to (\S+)", out)
+    steps = Path(path or ".").expanduser().resolve() / m.group(1) / "STEPS.md" if m else None
+    body = steps.read_text()[:12000] if steps and steps.exists() else ""
+    return out + ("\n\n" + body if body else "")
 
 
 def main():

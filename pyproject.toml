@@ -4,12 +4,12 @@ build-backend = "hatchling.build"
 
 [project]
 name = "loreto-mcp"
-version = "1.0.0"
-description = "MCP server for Loreto: read a repository's git history for the conventions its team never wrote down, and install them as a harness for Claude Code, Codex, Muse Code, OpenCode, Hermes or Cursor."
+version = "1.1.0"
+description = "MCP server for Loreto: read a repository's git history for the conventions its team never wrote down, and install them as a harness for Claude Code, Codex, Muse Code, OpenCode, Hermes or Cursor; and, with Gitology, ask whether an approach is sound before writing it."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-keywords = ["loreto", "mcp", "harness", "claude-code", "codex", "cursor", "agents-md", "claude-md", "coding-agent", "model-context-protocol", "x402"]
+keywords = ["loreto", "mcp", "harness", "claude-code", "codex", "cursor", "agents-md", "claude-md", "coding-agent", "model-context-protocol", "x402", "gitology", "knowledge-graph", "ontology"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -31,6 +31,7 @@ loreto-mcp = "loreto_mcp.server:main"
 [project.urls]
 Homepage = "https://loreto.io"
 Pricing = "https://loreto.io/pricing"
+Gitology = "https://loreto.io/gitology"
 Repository = "https://github.com/kopias/loreto-mcp"
 
 [tool.hatch.build.targets.wheel]

@@ -1,10 +1,12 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/kopias/loreto-mcp/main/assets/banner.png" alt="loreto-mcp — arm your coding agent with your repository. Works with Claude Code, Codex, Muse Code, OpenCode, Hermes and Cursor." width="100%">
+  <img src="https://raw.githubusercontent.com/kopias/loreto-mcp/main/assets/banner.png" alt="loreto-mcp with Gitology: arm your coding agent with your repository, and check an approach before it is written. Works with Claude Code, Codex, Muse Code, OpenCode, Hermes and Cursor." width="100%">
 </p>
 
 # loreto-mcp
 
 **Stop re-explaining your codebase.** Every codebase keeps rules no one wrote down: where code goes, how big a change is, what has to change together, what was reverted and why. Loreto reads them from your git history and installs them as a harness your coding agent loads, so every pull request it opens reads like your team wrote it.
+
+Then, before your agent writes a line, **[Gitology](https://loreto.io/gitology)** tells it whether the approach is sound for this repository, with the commits to prove it.
 
 Works with **Claude Code, Codex, Muse Code, OpenCode, Hermes and Cursor**.
 
@@ -60,6 +62,8 @@ No API key is needed for public repositories. To keep purchases on your Loreto a
 | `buy_harness(read_id, agent, files?)` | $5 / $2 a file | Returns a Stripe checkout link **for the person to pay**. The agent cannot pay. |
 | `get_harness(path)` | — | After payment: waits for the files and installs them into the repository at `path`. |
 | `ask_repo(question)` | included | Why was this reverted? Who knows this code? Answered from the history. |
+| `check_approach(approach, path?)` | free, local | Is this approach sound here? A verdict, the evidence and a better route. Runs [Gitology](#gitology-ask-before-you-build). |
+| `plan_change(request, path?)` | free, local | A change kit: `SPEC.md`, and `STEPS.md` small enough for a small model to build. Runs Gitology. |
 
 A typical session:
 
@@ -70,6 +74,22 @@ A typical session:
 > **You:** paid
 >
 > **Agent:** *(get_harness)* Armed Claude Code: `~ CLAUDE.md (kept yours, added the Loreto section)`, `+ .claude/skills/…`
+
+## Gitology: ask before you build
+
+[Gitology](https://loreto.io/gitology) maps a repository on your machine into a graph of what exists (modules, files, symbols, endpoints, tests, decision records, owners) and how it holds together (imports, changes-with, reverted-by, tested-by), and keeps it current through git hooks. `check_approach` and `plan_change` call it:
+
+> **You:** add retries to PaymentClient.capture
+>
+> **Agent:** *(check_approach)* **UNSOUND.** This exact change was made in `823cc78`, captured cards twice, and was reverted in `fac848a`; ADR-014 says retries belong in workers. Better route: wrap the call in `CaptureWorker` with `with_backoff`. *(plan_change)* Kit written: 4 steps.
+
+Install it once (Python 3.9+), and the tools find it:
+
+```bash
+curl -fsSL https://loreto.io/gitology/install.sh | sh
+```
+
+The graph is built locally. Only the verdict and the change kit call a model, they send it the excerpts and history that bear on the question, and the model can be local: set `GITOLOGY_MODEL=ollama:<model>`, or `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` in the MCP server's `env`. Gitology also runs on its own as a CLI and MCP server: see [loreto.io/gitology](https://loreto.io/gitology).
 
 ## For agents with a wallet: x402
 
@@ -84,10 +104,14 @@ POST https://api.loreto.io/api/v1/harness/x402/file      {"prepare_id": "...", "
 
 Public repositories only. A harness that is not ready yet answers 409 and nothing is charged. Full walkthrough with a Python x402 client: [loreto.io/docs#x402](https://loreto.io/docs#x402). This MCP server does not sign payments.
 
+## Changes in 1.1
+
+`check_approach` and `plan_change`, through Gitology. Nothing else changed.
+
 ## Changes in 1.0
 
 loreto-mcp used to wrap Loreto's skill generator and marketplace. Loreto is now about one thing, the harness, and the generator is no longer public. The `generate_skills`, catalog, `marketplace_*` and `agent_*` tools are gone; pin `loreto-mcp<1` if you depended on them.
 
 ---
 
-[loreto.io](https://loreto.io) · [Pricing](https://loreto.io/pricing) · MIT licence
+[loreto.io](https://loreto.io) · [Gitology](https://loreto.io/gitology) · [Pricing](https://loreto.io/pricing) · MIT licence
