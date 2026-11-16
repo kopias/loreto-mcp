@@ -19,6 +19,20 @@ Works with **Claude Code, Codex, Muse Code, OpenCode, Hermes, Cursor, DeepSeek H
 
 ---
 
+## Start in 30 seconds
+
+```bash
+claude mcp add loreto -- uvx loreto-mcp
+```
+
+Then tell your agent:
+
+> Read github.com/your-org/your-repo with Loreto.
+
+That's it. No account, no key, no config for a public repository (five free reads without an account; a free account lifts the limit). The read is free and shows what it found (anti-patterns, abstractions, deprecated code, duplication) before anything costs money. Say "buy it" and the agent hands you a checkout link; after you pay, it installs the files into your repo itself.
+
+---
+
 ## What the harness holds
 
 Written from the repository's own history, with the figure behind every rule:
@@ -60,6 +74,23 @@ No API key is needed for public repositories. To keep purchases on your Loreto a
 ```json
 "env": { "LORETO_API_KEY": "lor_..." }
 ```
+
+## Private repositories
+
+Public repositories need nothing. A private one is read through **your own GitHub connection**, so Loreto only ever sees what you chose to share:
+
+1. Sign in at [loreto.io](https://loreto.io) and press the **GitHub** button. Loreto's GitHub App is read-only, and you pick the repositories it can see (change them any time at [github.com/settings/installations](https://github.com/settings/installations)).
+2. Create a key at [loreto.io/dashboard/developer](https://loreto.io/dashboard/developer) and give it to the server:
+   ```bash
+   claude mcp add loreto -e LORETO_API_KEY=lor_... -- uvx loreto-mcp
+   ```
+3. Ask your agent to read the repository as usual.
+
+If a repository isn't reachable, `read_repo` says which of these steps is missing instead of failing. Private reads belong to your account and are never shown to anyone else. The repository is cloned read-only on Loreto's server to read its history and code, and the evidence your files are written from (figures from git, plus the first lines of a few of the busiest source files) goes to the model provider that writes them; nothing is published.
+
+Want the code to stay on your machine? `check_approach` and `plan_change` run **Gitology locally** and need no account at all.
+
+---
 
 ## Tools
 
@@ -111,6 +142,13 @@ POST https://api.loreto.io/api/v1/harness/x402/file      {"prepare_id": "...", "
 ```
 
 Public repositories only. A harness that is not ready yet answers 409 and nothing is charged. Full walkthrough with a Python x402 client: [loreto.io/docs#x402](https://loreto.io/docs#x402). This MCP server does not sign payments.
+
+## Changes in 1.2.0
+
+- Every agent the site writes for, including DeepSeek Harness, Antigravity and GitHub Copilot (checked against the live list).
+- `read_repo` leads with what it found: anti-patterns it will block, abstractions to reuse, deprecated code still in use, duplication worth simplifying.
+- A private repository gets the three steps to read it (connect GitHub, create a key, set `LORETO_API_KEY`) instead of an error.
+- Descriptions say what a harness holds now: six references and the skill's guard-rail scripts.
 
 ## Changes in 1.1.1
 

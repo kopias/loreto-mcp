@@ -178,3 +178,20 @@ def test_every_site_agent_is_accepted():
     assert set(server._agent_ids()) >= {"claude-code", "codex", "cursor", "hermes", "deepseek", "antigravity", "copilot"}
     out = fn(server.read_repo)("github.com/acme/w", agent="not-an-agent")
     assert out.startswith("Error: agent must be one of") and "copilot" in out
+
+
+def test_private_repo_gets_steps_not_a_web_message():
+    def post(url, json=None, headers=None, timeout=None):
+        if url.endswith("/explore/pass"):
+            return R(200, {"pass": "gp"})
+        if url.endswith("/timeline/explore"):
+            return R(400, {"detail": "acme/secret is private or does not exist. If it is yours, sign in and connect GitHub so the film can read it."})
+        raise AssertionError(url)
+    def get(url, headers=None, timeout=None):
+        if url.endswith("/timeline/harnesses"):
+            return R(200, {"harnesses": [{"id": "claude-code"}]})
+        raise AssertionError(url)
+    server.httpx.post, server.httpx.get = post, get
+    out = fn(server.read_repo)("github.com/acme/secret")
+    assert "looks private" in out and "LORETO_API_KEY" in out and "dashboard/developer" in out
+    assert "check_approach" in out and not out.startswith("Error")
