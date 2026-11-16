@@ -1,11 +1,19 @@
 """
 Loreto MCP Server — arm your coding agent with your repository.
 
-Loreto reads a repository's git history for the conventions its team never
-wrote down (where code goes, how big a change is, what changes together, what
-was reverted and why) and writes them into the files a coding agent loads:
-a root file (CLAUDE.md / AGENTS.md), a conventions skill, a reviewer, and four
-references. Claude Code, Codex, Muse Code, OpenCode, Hermes and Cursor.
+Your code is your context. Loreto reads a repository's code and git history and
+finds what a coding agent gets wrong there:
+  - anti-patterns: code shapes the team added and then reverted, and the "never"
+    rules in its decision records, which guard rails then block;
+  - abstractions: the modules the rest of the code imports, to reuse, not rewrite;
+  - deprecated code: what is marked deprecated, its replacement, who still calls it;
+  - simplification: blocks repeated across files, helpers defined many times,
+    modules nothing imports;
+plus the conventions nobody wrote down (where code goes, how big a change is, what
+changes together). It writes them into the files the agent loads: a root file
+(CLAUDE.md / AGENTS.md), a conventions skill with guard-rail scripts, a reviewer,
+and six references. Claude Code, Codex, Muse Code, OpenCode, Hermes, Cursor,
+DeepSeek Harness, Antigravity and GitHub Copilot.
 
 The flow, as tools:
 
@@ -65,7 +73,8 @@ API = SITE + "/api"
 _KEY = os.environ.get("LORETO_API_KEY", "").strip()
 STATE = Path(os.environ.get("LORETO_STATE", str(Path.home() / ".config" / "loreto" / "mcp.json")))
 
-AGENTS = ("claude-code", "codex", "muse-code", "opencode", "hermes", "cursor")
+# the site's list (GET /api/timeline/harnesses) is the truth; this is the fallback when it can't be reached
+AGENTS = ("claude-code", "codex", "muse-code", "opencode", "hermes", "cursor", "deepseek", "antigravity", "copilot")
 FILES = ("root", "skill", "reviewer", "conventions", "hotspots", "coupling", "reverts")
 ROOT_FILES = {"CLAUDE.md", "AGENTS.md"}
 SIDE_FILES = {"README.md", "evidence.json"}
@@ -77,10 +86,13 @@ WAIT = {"read": 150, "write": 240, "poll": 4}
 mcp = FastMCP(
     name="Loreto",
     instructions=textwrap.dedent("""
-        Loreto arms a coding agent with a repository: it reads the git history for the
-        conventions the team never wrote down and writes them into files the agent loads
-        (root file, conventions skill, reviewer, references) for Claude Code, Codex,
-        Muse Code, OpenCode, Hermes or Cursor.
+        Loreto arms a coding agent with a repository: your code is your context. It reads
+        the code and git history for anti-patterns the team already reverted, abstractions
+        to reuse, deprecated code still in use, duplication worth simplifying, and the
+        conventions nobody wrote down, then writes them into files the agent loads (root
+        file, conventions skill with guard-rail scripts, reviewer, six references) for
+        Claude Code, Codex, Muse Code, OpenCode, Hermes, Cursor, DeepSeek Harness,
+        Antigravity or GitHub Copilot.
 
         1. read_repo(repo, agent) — free. Shows what the history says and the files the
            harness would hold, with prices. Show this to the person.
@@ -152,6 +164,16 @@ def _repo_url(repo: str) -> Optional[str]:
     return f"https://github.com/{m.group(1)}/{m.group(2)}" if m else None
 
 
+def _agent_ids() -> tuple[str, ...]:
+    """The agents the site writes for today; the built-in list if the site can't be reached."""
+    try:
+        r = httpx.get(f"{API}/timeline/harnesses", timeout=10)
+        ids = tuple(h["id"] for h in r.json().get("harnesses", [])) if r.status_code == 200 else ()
+    except Exception:          # never let a lookup stop a read: fall back to the built-in list
+        ids = ()
+    return ids or AGENTS
+
+
 def _usd(cents: int) -> str:
     return f"${cents / 100:.2f}".replace(".00", "")
 
@@ -177,20 +199,24 @@ def read_repo(repo: str, agent: str = "claude-code") -> str:
     """
     Read a GitHub repository's history and show what its harness would hold. Free; nothing is charged.
 
-    Returns what the history says (how big a change is, where the work lands, what changes
-    together, what was reverted), the files the harness would write for the chosen agent,
-    the prices, and a read_id for buy_harness. A large repository can take a minute or two;
-    if it is still reading, call this again with the same repo.
+    Returns what it found: anti-patterns it will block (reverted code shapes), abstractions
+    to reuse, deprecated code still in use, duplication worth simplifying, and what the
+    history says (how big a change is, where the work lands, what changes together). Then
+    the files the harness would write for the chosen agent, the prices, and a read_id for
+    buy_harness. A large repository can take a few minutes the first time; if it is still
+    reading, call this again with the same repo.
 
     Args:
         repo: A GitHub repository, as a URL or owner/name.
-        agent: One of claude-code, codex, muse-code, opencode, hermes, cursor.
+        agent: One of claude-code, codex, muse-code, opencode, hermes, cursor, deepseek,
+               antigravity, copilot (list_agents shows where each reads its files).
     """
     url = _repo_url(repo)
     if not url:
         return "Error: repo must be a GitHub repository, like github.com/owner/name."
-    if agent not in AGENTS:
-        return f"Error: agent must be one of {', '.join(AGENTS)}."
+    known = _agent_ids()
+    if agent not in known:
+        return f"Error: agent must be one of {', '.join(known)}."
     try:
         r = httpx.post(f"{API}/timeline/explore", json={"repo_url": url}, headers=_headers(), timeout=30)
         if r.status_code != 200:
@@ -216,7 +242,7 @@ def read_repo(repo: str, agent: str = "claude-code") -> str:
     st = _load()
     st["last_read"] = {"read_id": x["id"], "repo": url, "agent": agent}
     _save(st)
-    lines = [f"Read {t['commits_read']} commits of {url} (read_id: {x['id']}).", "", "What the history says:"]
+    lines = [f"Read {t['commits_read']} commits of {url} (read_id: {x['id']}).", "", "What it found:"]
     lines += [f"- {i['title']}: {i['line']}" for i in t["insights"]]
     lines += ["", f"The {agent} harness would hold:"]
     lines += [f"- [{i['key']}] {i['path']} — {i['what']}" for i in t["items"]]
@@ -325,7 +351,9 @@ def get_harness(path: str = ".", session_id: str = "") -> str:
     After the person has paid: wait for the harness to be written, then install it into the
     repository at `path`. The root file (CLAUDE.md / AGENTS.md) is merged between loreto
     markers, never overwritten; README and evidence go under .loreto/; Hermes skills go to
-    ~/.hermes/skills. Run it again at any time to reinstall the latest purchase.
+    ~/.hermes/skills. The skill's scripts come too: guardrails.py blocks reverted code and
+    warns on deprecated calls, check-change.py checks a change before a pull request.
+    Run it again at any time to reinstall the latest purchase.
 
     Args:
         path: The repository to install into. Defaults to the current directory.
@@ -373,7 +401,9 @@ def get_harness(path: str = ".", session_id: str = "") -> str:
     done = install_zip(r.content, g["harness"], g["full_name"], root)
     extra = f"\n\nComplete the harness for {_usd(g['complete_cents'])}: call buy_harness with read_id {g['xid']}." if g.get("complete_cents") else ""
     return (f"Armed {g.get('harness_name')} in {root} with the harness for {g['full_name']}:\n" + "\n".join(done) +
-            "\n\nReview with git status, then start a new agent session so it loads the files." + extra)
+            "\n\nReview with git status, then start a new agent session so it loads the files. "
+            "Run the skill's scripts/guardrails.py after an edit: it blocks code this team already reverted "
+            "and warns on calls to deprecated code (see references/code-health.md)." + extra)
 
 
 @mcp.tool()

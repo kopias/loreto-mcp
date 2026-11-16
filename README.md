@@ -1,14 +1,21 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/kopias/loreto-mcp/main/assets/banner.png" alt="loreto-mcp with Gitology: arm your coding agent with your repository, and check an approach before it is written. Works with Claude Code, Codex, Muse Code, OpenCode, Hermes and Cursor." width="100%">
+  <img src="https://raw.githubusercontent.com/kopias/loreto-mcp/main/assets/banner.png" alt="loreto-mcp with Gitology: arm your coding agent with your repository, and check an approach before it is written. Works with Claude Code, Codex, Muse Code, OpenCode, Hermes, Cursor, DeepSeek Harness, Antigravity and GitHub Copilot." width="100%">
 </p>
 
 # loreto-mcp
 
-**Stop re-explaining your codebase.** Every codebase keeps rules no one wrote down: where code goes, how big a change is, what has to change together, what was reverted and why. Loreto reads them from your git history and installs them as a harness your coding agent loads, so every pull request it opens reads like your team wrote it.
+**Your code is your context.** Loreto reads your repository's code and git history and finds the four mistakes a coding agent keeps making there:
+
+- **Anti-patterns:** code your team already added and reverted, and the "never" rules in your decision records. Guard rails block them.
+- **Abstractions:** the modules the rest of the code imports. Your agent reuses them instead of writing a second one.
+- **Deprecated code:** what is retired, what replaced it, and who still calls it. A new call gets a warning.
+- **Simplification:** blocks copied between files, helpers defined many times, modules nothing imports.
+
+Plus the rules nobody wrote down: where code goes, how big a change is, what has to change together. It installs all of it as a harness your coding agent loads, so every pull request it opens reads like your team wrote it.
 
 Then, before your agent writes a line, **[Gitology](https://loreto.io/gitology)** tells it whether to build it that way in this repository, with the commits to prove it.
 
-Works with **Claude Code, Codex, Muse Code, OpenCode, Hermes and Cursor**.
+Works with **Claude Code, Codex, Muse Code, OpenCode, Hermes, Cursor, DeepSeek Harness, Antigravity and GitHub Copilot**.
 
 ---
 
@@ -21,7 +28,8 @@ Written from the repository's own history, with the figure behind every rule:
 | Root file | `CLAUDE.md` (or `AGENTS.md`) | Read on every session: what the repo is and the rules that matter most. Merged between `loreto` markers; your own file is kept. |
 | Conventions skill | `.claude/skills/<repo>-conventions/SKILL.md` | How a change is made here: where code goes, sizing, naming, testing. |
 | Reviewer | `.claude/agents/<repo>-conventions-reviewer.md` | Checks a change against the repo's own thresholds before a human has to. |
-| References | `…/references/conventions.md`, `hotspots.md`, `coupling.md`, `lessons-from-reverts.md` | The evidence: conventions, the files the work lands in, what moves together, what had to be undone. |
+| References | `…/references/conventions.md`, `hotspots.md`, `coupling.md`, `lessons-from-reverts.md`, `anti-patterns.md`, `code-health.md` | The evidence: conventions, the files the work lands in, what moves together, what had to be undone, what not to put back, and what to reuse, retire and simplify. |
+| Scripts | `…/scripts/guardrails.py`, `check-change.py`, `about.py` | Python, nothing to install. `guardrails.py` blocks reverted code and warns on deprecated calls; `check-change.py --strict` fails a git hook or CI run. |
 
 Each agent gets its own layout (`AGENTS.md` + `.agents/skills/` for Codex and Muse Code, `.cursor/rules/` for Cursor, `~/.hermes/skills/` for Hermes). `list_agents` shows them.
 

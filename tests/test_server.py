@@ -162,3 +162,19 @@ if __name__ == "__main__":
         if name.startswith("test_"):
             f()
             print("ok", name)
+
+
+def test_every_site_agent_is_accepted():
+    """Buyers pick the output format; read_repo must accept every agent the site writes for, including ones added later."""
+    def get(url, headers=None, timeout=None):
+        if url.endswith("/timeline/harnesses"):
+            return R(200, {"harnesses": [{"id": i} for i in ("claude-code", "copilot", "antigravity", "deepseek", "hermes", "brand-new")]})
+        raise AssertionError(url)
+    server.httpx.get = get
+    assert "brand-new" in server._agent_ids() and "copilot" in server._agent_ids()
+    def down(url, headers=None, timeout=None):
+        raise server.httpx.ConnectError("offline")
+    server.httpx.get = down
+    assert set(server._agent_ids()) >= {"claude-code", "codex", "cursor", "hermes", "deepseek", "antigravity", "copilot"}
+    out = fn(server.read_repo)("github.com/acme/w", agent="not-an-agent")
+    assert out.startswith("Error: agent must be one of") and "copilot" in out
