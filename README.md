@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/kopias/loreto-mcp/main/assets/banner.png" alt="loreto-mcp with Gitology: arm your coding agent with your repository, and check an approach before it is written. Works with Claude Code, Codex, Muse Code, OpenCode, Hermes, Cursor, DeepSeek Harness, Antigravity and GitHub Copilot." width="100%">
+  <img src="https://raw.githubusercontent.com/kopias/loreto-mcp/main/assets/banner.png" alt="loreto-mcp: your repository flows into Loreto and a harness comes out, layer by layer: a reverted anti-pattern blocked, a deprecated class warned, a shared module to reuse, duplication to simplify, SKILL.md and CLAUDE.md. Works with Claude Code, Codex, Muse Code, OpenCode, Hermes, Cursor, DeepSeek Harness, Antigravity and GitHub Copilot." width="100%">
 </p>
 
 # loreto-mcp
