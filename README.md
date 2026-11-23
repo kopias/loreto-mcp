@@ -103,6 +103,8 @@ Want the code to stay on your machine? `check_approach` and `plan_change` run **
 | `ask_repo(question)` | included | Why was this reverted? Who knows this code? Answered from the history. |
 | `check_approach(approach, path?)` | free, local | Should I build it this way here? Good to go, risky or don't merge, with the evidence and a better route. Runs [Gitology](#gitology-ask-before-you-build). |
 | `plan_change(request, path?)` | free, local | A change kit: `SPEC.md`, and `STEPS.md` small enough for a small model to build. Runs Gitology. |
+| `list_model_harnesses(query?)` | free | The open-weight models with a free harness (Qwen, GLM, DeepSeek, Gemma, gpt-oss, Nemotron…). |
+| `get_model_harness(model, agent, mode, path)` | free | Installs the harness for the model you run: rules for its known problems, agent settings, code checks, a loop breaker, a reviewer and a setup check. Modes: Quick fixes, Everyday, Hard problems, Careful changes. |
 
 A typical session:
 
@@ -142,6 +144,10 @@ POST https://api.loreto.io/api/v1/harness/x402/file      {"prepare_id": "...", "
 ```
 
 Public repositories only. A harness that is not ready yet answers 409 and nothing is charged. Full walkthrough with a Python x402 client: [loreto.io/docs#x402](https://loreto.io/docs#x402). This MCP server does not sign payments.
+
+## Changes in 1.3.0
+
+- Free model harnesses: `list_model_harnesses` and `get_model_harness` fit Claude Code, OpenCode, Codex, Hermes or DeepSeek Harness to an open-weight model's known problems. No account, no payment. The same files as [loreto.io/harnesses](https://loreto.io/harnesses).
 
 ## Changes in 1.2.0
 

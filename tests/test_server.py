@@ -157,11 +157,6 @@ esac
     assert log.read_text().split() == ["init", "ask", "spec"]   # mapped once, then answered
 
 
-if __name__ == "__main__":
-    for name, f in list(globals().items()):
-        if name.startswith("test_"):
-            f()
-            print("ok", name)
 
 
 def test_every_site_agent_is_accepted():
@@ -195,3 +190,38 @@ def test_private_repo_gets_steps_not_a_web_message():
     out = fn(server.read_repo)("github.com/acme/secret")
     assert "looks private" in out and "LORETO_API_KEY" in out and "dashboard/developer" in out
     assert "check_approach" in out and not out.startswith("Error")
+
+
+def test_model_harness_list_and_install():
+    script = "#!/bin/sh\nmkdir -p .claude && echo ok > .claude/x.md && echo 'Armed Claude Code: 1 files.'\n"
+    seen = {}
+    def get(url, params=None, headers=None, timeout=None):
+        if url.endswith("/api/harnesses"):
+            return R(200, {"checked": "2026-11-22", "agents": ["claude-code"], "modes": [{"key": "defend", "name": "Careful changes"}],
+                           "models": [{"id": "glm-5.3-flash", "name": "GLM-5.3 Flash", "maker": "Z.ai", "known_problems": 4},
+                                      {"id": "gemma-4-31b", "name": "Gemma 4 31B", "maker": "Google", "known_problems": 0}]})
+        if url.endswith("/glm-5.3-flash/claude-code/install.sh"):
+            seen["params"] = params
+            r = R(200); r.text = script; return r
+        if url.endswith("/install.sh"):
+            return R(404, {"detail": "No harness"})
+        raise AssertionError(url)
+    server.httpx.get = get
+    out = fn(server.list_model_harnesses)("glm")
+    assert "glm-5.3-flash: GLM-5.3 Flash (Z.ai), fixes 4 known problems" in out and "gemma" not in out
+    assert "No model harness matches" in fn(server.list_model_harnesses)("zzz")
+    d = tempfile.mkdtemp()
+    out = fn(server.get_model_harness)("glm-5.3-flash", "claude-code", "Careful changes", d)
+    assert out.startswith("Installed") and (Path(d) / ".claude/x.md").read_text() == "ok\n"
+    assert seen["params"] == {"dial": "defend"}, "a mode's plain name maps to its key"
+    assert "no harness" in fn(server.get_model_harness)("nope", "claude-code", "defend", d)
+    assert fn(server.get_model_harness)("glm-5.3-flash", "cursor", "defend", d).startswith("Error: agent")
+    assert fn(server.get_model_harness)("glm-5.3-flash", "codex", "fast", d).startswith("Error: mode")
+    assert fn(server.get_model_harness)("../etc", "codex", "defend", d).startswith("Error: give a model id")
+
+
+if __name__ == "__main__":
+    for name, f in list(globals().items()):
+        if name.startswith("test_"):
+            f()
+            print("ok", name)

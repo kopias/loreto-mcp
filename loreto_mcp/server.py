@@ -23,6 +23,12 @@ The flow, as tools:
     get_harness     once paid: write the files into the repository
     ask_repo        questions to the repository, 25 with each purchase
 
+Free, for the model you run (https://loreto.io/harnesses):
+
+    list_model_harnesses   the open-weight models with a free harness
+    get_model_harness      install one: fits Claude Code, OpenCode, Codex, Hermes or
+                           DeepSeek to that model's known problems
+
 And, on your machine, through Gitology (https://loreto.io/gitology):
 
     check_approach  should I build it this way here? a verdict with the commits behind it
@@ -105,6 +111,10 @@ mcp = FastMCP(
         3. get_harness(path) — after they pay, writes the files into their repository. The
            root file is merged between loreto markers, never overwritten.
         4. ask_repo(question) — questions answered from the history, 25 per purchase.
+
+        Running an open-weight model (Qwen, GLM, DeepSeek, Gemma, gpt-oss...)? Free:
+        list_model_harnesses(query) then get_model_harness(model, agent, mode, path) installs
+        a harness fitted to that model's known problems. No account, no payment.
 
         Private repositories: if read_repo says a repository is private, relay its three
         steps to the person (connect GitHub, create a key, set LORETO_API_KEY); you cannot
@@ -548,6 +558,93 @@ def plan_change(request: str, path: str = ".", name: str = "") -> str:
     steps = Path(path or ".").expanduser().resolve() / m.group(1) / "STEPS.md" if m else None
     body = steps.read_text()[:12000] if steps and steps.exists() else ""
     return out + ("\n\n" + body if body else "")
+
+
+# ── free model harnesses: fit the agent to the model you run ─────────────────
+
+MODEL_AGENTS = ("claude-code", "opencode", "codex", "hermes", "deepseek")
+MODES = {"economy": "Quick fixes", "balanced": "Everyday", "attack": "Hard problems", "defend": "Careful changes"}
+
+
+def _mode_key(mode: str) -> Optional[str]:
+    m = (mode or "balanced").strip().lower()
+    return m if m in MODES else next((k for k, v in MODES.items() if v.lower() == m), None)
+
+
+@mcp.tool()
+def list_model_harnesses(query: str = "") -> str:
+    """
+    List the free model harnesses: one per open-weight model (Qwen, GLM, DeepSeek, Gemma, gpt-oss,
+    Nemotron, Kimi, MiniMax, Mistral...), each fitting an agent to that model's known problems.
+    query filters by name, id or maker, e.g. "qwen" or "glm-5.3".
+    """
+    try:
+        r = httpx.get(f"{API}/harnesses", headers={"User-Agent": "loreto-mcp/1.0"}, timeout=20)
+    except httpx.RequestError as e:
+        return f"Error: could not reach Loreto — {e}"
+    if r.status_code != 200:
+        return f"Error: {_detail(r)}"
+    d = r.json()
+    q = query.strip().lower()
+    rows = [m for m in d.get("models", []) if not q or q in f"{m['id']} {m['name']} {m.get('maker') or ''} {m.get('hf') or ''}".lower()]
+    if not rows:
+        return f"No model harness matches {query!r}. Call list_model_harnesses() with no query to see all {len(d.get('models', []))}."
+    lines = [f"- {m['id']}: {m['name']}" + (f" ({m['maker']})" if m.get("maker") else "")
+             + (f", fixes {m['known_problems']} known problem{'s' if m['known_problems'] != 1 else ''}" if m.get("known_problems") else "")
+             for m in rows]
+    modes = ", ".join(f"{x['key']} ({x['name']})" for x in d.get("modes", [])) or ", ".join(f"{k} ({v})" for k, v in MODES.items())
+    return (f"Free model harnesses, checked {d.get('checked', '')}:\n" + "\n".join(lines)
+            + f"\n\nAgents: {', '.join(d.get('agents', MODEL_AGENTS))}\nModes: {modes}\n"
+            "Install one with get_model_harness(model, agent, mode, path).")
+
+
+@mcp.tool()
+def get_model_harness(model: str, agent: str = "claude-code", mode: str = "balanced", path: str = ".", build: str = "") -> str:
+    """
+    Install the free harness for an open-weight model into a repository: rules for the model's known
+    problems, agent settings, code checks, a loop breaker, a second-opinion reviewer and a setup check.
+    Free, no account. Re-running updates it; your own root file and settings are kept.
+
+    model: an id from list_model_harnesses, e.g. "glm-5.3-flash"
+    agent: claude-code, opencode, codex, hermes or deepseek
+    mode:  economy (Quick fixes), balanced (Everyday), attack (Hard problems) or defend (Careful changes)
+    build: optional, the Hugging Face id of the exact build you serve, e.g. "unsloth/Qwen3.8-27B-GGUF"
+    """
+    agent = (agent or "claude-code").strip().lower()
+    if agent not in MODEL_AGENTS:
+        return f"Error: agent must be one of {', '.join(MODEL_AGENTS)}."
+    key = _mode_key(mode)
+    if not key:
+        return f"Error: mode must be one of {', '.join(f'{k} ({v})' for k, v in MODES.items())}."
+    model = (model or "").strip().lower()
+    if not re.match(r"^[a-z0-9][a-z0-9._-]{0,80}$", model):
+        return "Error: give a model id from list_model_harnesses, e.g. glm-5.3-flash."
+    root = Path(path).expanduser().resolve()
+    if not root.is_dir():
+        return f"Error: {root} is not a folder."
+    params = {"dial": key, **({"build": build.strip()} if build.strip() else {})}
+    base = f"{API}/harnesses/{model}/{agent}"
+    zip_url = str(httpx.URL(f"{base}/harness.zip", params=params))
+    sh = shutil.which("sh")
+    if not sh:
+        return f"This machine has no sh to run the installer. Download the files instead: {zip_url}"
+    try:
+        r = httpx.get(f"{base}/install.sh", params=params, headers={"User-Agent": "loreto-mcp/1.0"}, timeout=60)
+    except httpx.RequestError as e:
+        return f"Error: could not reach Loreto — {e}"
+    if r.status_code == 404:
+        return f"Loreto has no harness for {model!r}. Call list_model_harnesses to see the models."
+    if r.status_code != 200 or not r.text.startswith("#!"):
+        return f"Error: {_detail(r)}"
+    try:
+        p = subprocess.run([sh, "-s"], input=r.text, cwd=str(root), capture_output=True, text=True, timeout=120)
+    except subprocess.TimeoutExpired:
+        return "Error: the installer took longer than two minutes and was stopped."
+    out = (p.stdout + ("\n" + p.stderr if p.stderr.strip() else "")).strip()
+    if p.returncode != 0:
+        return f"The installer failed (exit {p.returncode}):\n{out[-2000:]}\n\nThe files as a zip: {zip_url}"
+    return (f"Installed the {model} harness for {agent}, {MODES[key]}, in {root}.\n\n{out[-2500:]}\n\n"
+            f"What each file does: https://loreto.io/harnesses/{model}?agent={agent}&dial={key}")
 
 
 def main():
