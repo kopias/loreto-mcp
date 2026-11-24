@@ -33,11 +33,16 @@ Free, no account, no key. **69 open models** (Qwen, Gemma, DeepSeek, GLM, gpt-os
 
 Same model, different harness, different result: Mistral Large 4 scored **41.4%** on Terminal Bench 4.0 in one agent and **24.7%** in another at the same effort ([Artificial Analysis figures, quoted here](https://huggingface.co/mistralai/Mistral-Large-4-1T-A52B/discussions/17); neither harness is ours). Most of what decides whether an open model is usable sits outside the weights.
 
+<p align="center"><img src="https://raw.githubusercontent.com/kopias/loreto-mcp/main/assets/metric-harness-gap.png" alt="Mistral Large 4 on Terminal Bench 4.0: 41.4% in Mistral Vibe 3.0, 24.7% in mini-swe-agent, same high effort. Seventeen points from the harness alone." width="720"></p>
+
 **Honest limits.** A harness does not make a 27B model match a frontier model on hard problems. In agents without hooks, the rules and checks are instructions the model is asked to follow, not walls it cannot climb. And we have not benchmarked these harnesses yet: treat them as fixes for reported problems, not a score.
 
 ## Example: Qwen3.8 27B in OpenCode
 
-Reported on the model's page: 45 to 80+ minutes of thinking on a 5K token plan before writing a line ([#178](https://huggingface.co/Qwen/Qwen3.8-27B/discussions/178)). OpenCode offers a "high" effort the template does not have, so every request fails with a 500 and is retried five times ([opencode#53202](https://github.com/anomalyco/opencode/issues/53202)). The harness:
+Reported on the model's page: 45 to 80+ minutes of thinking on a 5K token plan before writing a line ([#178](https://huggingface.co/Qwen/Qwen3.8-27B/discussions/178)). OpenCode offers a "high" effort the template does not have, so every request fails with a 500 and is retried five times ([opencode#53202](https://github.com/anomalyco/opencode/issues/53202)). 
+<p align="center"><img src="https://raw.githubusercontent.com/kopias/loreto-mcp/main/assets/metric-qwen-stall.png" alt="Qwen3.8 27B: 82 minutes of thinking in LM Studio, then stopped by hand, zero files written. SGLang 45 to 80+ minutes on a 5K token plan, 20K to 55K tokens burned; Copilot Chat on a 32GB Mac 51 minutes, 0 files. OpenCode offers low, medium, high; the template accepts low, medium, xhigh; high returns HTTP 500 and is retried five times." width="720"></p>
+
+The harness:
 
 ```jsonc
 // opencode.json (the parts that matter)
@@ -54,6 +59,8 @@ Reported on the model's page: 45 to 80+ minutes of thinking on a 5K token plan b
 ```
 
 Plus a serving note for the cap the agent cannot set (`llama-server … --reasoning-budget 6144`), and a known issues file that links every report above so you can check our reading of them.
+
+<p align="center"><img src="https://raw.githubusercontent.com/kopias/loreto-mcp/main/assets/metric-qwen-fix.png" alt="What the Qwen3.8 27B harness sets in OpenCode: only the effort levels it has, the thread's sampling (0.6, 0.95, top_k 20), check a plan once then edit, and a thinking cap of about 6K tokens on the server." width="720"></p>
 
 ## Install
 
