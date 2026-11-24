@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/kopias/loreto-mcp/main/assets/banner.png" alt="Stop babysitting your open model. Open models loop, stall, and say done too soon; a harness tuned to the model breaks the loop, keeps it moving, and holds it to your checks. npx loreto add qwen3.8-27b --agent opencode. For Hermes, OpenCode, Claude Code, Codex and DeepSeek. Qwen3.8 27B is known for thinking for an hour and writing nothing; its harness is built for a first edit sooner, for fewer tokens." width="100%">
+  <img src="https://raw.githubusercontent.com/kopias/loreto-mcp/main/assets/banner.png?v=2" alt="Stop babysitting your open model. Open models loop, stall, and say done too soon; a harness tuned to the model breaks the loop, keeps it moving, and holds it to your checks. npx loreto add qwen3.8-27b --agent opencode. For Hermes, OpenCode, Claude Code, Codex and DeepSeek. Qwen3.8 27B is known for thinking for an hour and writing nothing; its harness is built for a first edit sooner, for fewer tokens." width="100%">
 </p>
 
 <p align="center">
