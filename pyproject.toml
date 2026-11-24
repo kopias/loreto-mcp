@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "loreto-mcp"
 version = "1.3.0"
-description = "MCP server for Loreto: your code is your context. Reads a repository for anti-patterns it already reverted, abstractions to reuse, deprecated code and duplication, and installs them as a harness with guard rails for Claude Code, Codex, Cursor, Hermes, Copilot and more; and, with Gitology, asks whether an approach is sound before writing it."
+description = "Free harnesses for open models in Claude Code, OpenCode, Codex, Hermes and DeepSeek: break the loop, keep the model moving, hold it to your checks. Plus a $5 harness tuned to your own repository."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
