@@ -95,6 +95,8 @@ Then ask: *"Install the Loreto harness for Qwen3.8 27B."* Or in any MCP client c
 
 ## What a harness holds
 
+<p align="center"><img src="https://raw.githubusercontent.com/kopias/loreto-mcp/main/assets/harness-page-qwen.jpg" alt="The Qwen3.8 27B harness page on loreto.io: a perfectionist that finds the answer early and cannot stop checking it. Each part of the harness and the known problems it fixes: code checks, loop breaker (not in OpenCode), agent settings, instructions, server settings, a setup check and a second opinion; the checks it must pass (it parses, types check, tests pass); and the mode dial." width="760"></p>
+
 The OpenCode harness for Qwen3.8 27B, as installed (each agent gets its own layout):
 
 ```
@@ -120,6 +122,8 @@ The free harness fixes what the model gets wrong everywhere. Your repository has
 - **Abstractions** the rest of the code imports. The agent reuses them instead of writing a second one.
 - **Deprecated code**, what replaced it and who still calls it. A new call gets a warning.
 - **Simplification**: duplicated blocks, helpers defined many times, modules nothing imports.
+
+<p align="center"><img src="https://raw.githubusercontent.com/kopias/loreto-mcp/main/assets/repo-findings.jpg" alt="An example read of mrdoob/three.js: Block isAssign(), reverted in 699e1fa; Warn Clock, deprecated and used in 5 files; Reuse constants.js, imported by 137 files; Simplify LWO2 and LWO3, 126 identical lines." width="460"></p>
 
 Reading is free and shows every finding first. The tuned harness is **$5 once**, or **$2 a file**. Ask your agent *"Read github.com/your-org/your-repo with Loreto"*, or paste the repository at [loreto.io/tune](https://loreto.io/tune).
 
